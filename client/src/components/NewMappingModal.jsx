@@ -18,6 +18,7 @@ export default function NewMappingModal({ onClose, onCreated }) {
     box_folder_name: '',
   });
   const [channels, setChannels] = useState([]);
+  const [channelsError, setChannelsError] = useState(false);
   const [channelSearch, setChannelSearch] = useState('');
   const [folders, setFolders] = useState([]);
   const [expanded, setExpanded] = useState({});
@@ -26,8 +27,13 @@ export default function NewMappingModal({ onClose, onCreated }) {
 
   // Load Slack channels on step 1
   useEffect(() => {
-    if (step === 1 && channels.length === 0) {
-      api.get('/slack/channels').then(setChannels).catch(console.error);
+    if (step === 1 && channels.length === 0 && !channelsError) {
+      api.get('/slack/channels')
+        .then((data) => {
+          if (Array.isArray(data)) setChannels(data);
+          else setChannelsError(true);
+        })
+        .catch(() => setChannelsError(true));
     }
   }, [step]);
 
@@ -82,7 +88,7 @@ export default function NewMappingModal({ onClose, onCreated }) {
 
   const canNext =
     (step === 0 && form.project_name.trim()) ||
-    (step === 1 && form.slack_channel_id) ||
+    (step === 1 && form.slack_channel_id?.trim()) ||
     (step === 2 && form.box_folder_id) ||
     step === 3;
 
@@ -185,33 +191,58 @@ export default function NewMappingModal({ onClose, onCreated }) {
 
           {step === 1 && (
             <div className="space-y-3">
-              <input
-                value={channelSearch}
-                onChange={(e) => setChannelSearch(e.target.value)}
-                placeholder="Search channels..."
-                className="w-full rounded-lg border border-navy-lighter bg-navy px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-teal focus:outline-none"
-              />
-              <div className="max-h-48 space-y-1 overflow-y-auto">
-                {filteredChannels.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() =>
-                      setForm({ ...form, slack_channel_id: c.id, slack_channel_name: c.name })
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-sm text-slate-500">#</span>
+                <input
+                  value={channelSearch}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/^#/, '');
+                    setChannelSearch(val);
+                    // When API unavailable, allow manual entry
+                    if (channelsError) {
+                      setForm({ ...form, slack_channel_id: val, slack_channel_name: val });
                     }
-                    className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm ${
-                      form.slack_channel_id === c.id
-                        ? 'bg-teal/10 text-teal'
-                        : 'text-slate-300 hover:bg-navy-lighter'
-                    }`}
-                  >
-                    <span className="font-mono text-xs">#{c.name}</span>
-                    {form.slack_channel_id === c.id && <Check size={14} className="ml-auto" />}
-                  </button>
-                ))}
-                {filteredChannels.length === 0 && (
-                  <p className="py-4 text-center text-sm text-slate-500">No channels found</p>
-                )}
+                  }}
+                  placeholder="search or type channel name..."
+                  className="w-full rounded-lg border border-navy-lighter bg-navy py-2 pl-7 pr-3 font-mono text-sm text-white placeholder:text-slate-600 focus:border-teal focus:outline-none"
+                />
               </div>
+              {channelsError ? (
+                <div className="space-y-2">
+                  {channelSearch.trim() && (
+                    <div className="flex items-center gap-2 rounded-lg bg-teal/10 px-3 py-2 text-sm text-teal">
+                      <Check size={14} />
+                      <span className="font-mono text-xs">#{channelSearch.trim()}</span>
+                      <span className="ml-auto text-xs text-slate-400">manual entry</span>
+                    </div>
+                  )}
+                  <p className="text-center text-xs text-slate-500">
+                    Could not load channels from Slack. Type the channel name manually above.
+                  </p>
+                </div>
+              ) : (
+                <div className="max-h-48 space-y-1 overflow-y-auto">
+                  {filteredChannels.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() =>
+                        setForm({ ...form, slack_channel_id: c.id, slack_channel_name: c.name })
+                      }
+                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm ${
+                        form.slack_channel_id === c.id
+                          ? 'bg-teal/10 text-teal'
+                          : 'text-slate-300 hover:bg-navy-lighter'
+                      }`}
+                    >
+                      <span className="font-mono text-xs">#{c.name}</span>
+                      {form.slack_channel_id === c.id && <Check size={14} className="ml-auto" />}
+                    </button>
+                  ))}
+                  {filteredChannels.length === 0 && (
+                    <p className="py-4 text-center text-sm text-slate-500">No channels found</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

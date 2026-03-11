@@ -18,6 +18,12 @@ app.use('/api/box', boxRouter);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
+// Global error handler — prevents unhandled errors from crashing the process
+app.use((err, _req, res, _next) => {
+  console.error('Unhandled error:', err.message);
+  res.status(500).json({ error: err.message });
+});
+
 app.listen(PORT, () => {
   console.log(`ChannelBridge server listening on port ${PORT}`);
 });

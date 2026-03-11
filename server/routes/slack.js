@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import slackVerify from '../middleware/slackVerify.js';
-import supabase from '../services/supabase.js';
+import getSupabase from '../services/supabase.js';
 import { listChannels, getFileInfo, downloadFile } from '../services/slack.js';
 import { uploadFile } from '../services/box.js';
 
@@ -39,7 +39,7 @@ router.get('/channels', async (_req, res) => {
 async function handleFileShared(event) {
   const { channel_id, file_id } = event;
 
-  const { data: mapping } = await supabase
+  const { data: mapping } = await getSupabase()
     .from('mappings')
     .select('*')
     .eq('slack_channel_id', channel_id)
@@ -49,7 +49,7 @@ async function handleFileShared(event) {
   if (!mapping) return;
 
   const cutoff = new Date(Date.now() - 60_000).toISOString();
-  const { data: existing } = await supabase
+  const { data: existing } = await getSupabase()
     .from('sync_logs')
     .select('id')
     .eq('mapping_id', mapping.id)
@@ -63,7 +63,7 @@ async function handleFileShared(event) {
   const buffer = await downloadFile(file.url_private);
   const boxFile = await uploadFile(mapping.box_folder_id, file.name, buffer);
 
-  await supabase.from('sync_logs').insert({
+  await getSupabase().from('sync_logs').insert({
     mapping_id: mapping.id,
     file_id,
     file_name: file.name,
