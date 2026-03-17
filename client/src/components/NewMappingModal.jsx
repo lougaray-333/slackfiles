@@ -18,6 +18,7 @@ export default function NewMappingModal({ onClose, onCreated }) {
     box_folder_name: '',
   });
   const [channels, setChannels] = useState([]);
+  const [channelsLoading, setChannelsLoading] = useState(false);
   const [channelsError, setChannelsError] = useState(false);
   const [channelSearch, setChannelSearch] = useState('');
   const [folders, setFolders] = useState([]);
@@ -27,13 +28,15 @@ export default function NewMappingModal({ onClose, onCreated }) {
 
   // Load Slack channels on step 1
   useEffect(() => {
-    if (step === 1 && channels.length === 0 && !channelsError) {
+    if (step === 1 && channels.length === 0 && !channelsError && !channelsLoading) {
+      setChannelsLoading(true);
       api.get('/slack/channels')
         .then((data) => {
           if (Array.isArray(data)) setChannels(data);
           else setChannelsError(true);
         })
-        .catch(() => setChannelsError(true));
+        .catch(() => setChannelsError(true))
+        .finally(() => setChannelsLoading(false));
     }
   }, [step]);
 
@@ -207,7 +210,9 @@ export default function NewMappingModal({ onClose, onCreated }) {
                   className="w-full rounded-lg border border-navy-lighter bg-navy py-2 pl-7 pr-3 font-mono text-sm text-white placeholder:text-slate-600 focus:border-teal focus:outline-none"
                 />
               </div>
-              {channelsError ? (
+              {channelsLoading ? (
+                <p className="py-8 text-center text-sm text-slate-500">Loading channels...</p>
+              ) : channelsError ? (
                 <div className="space-y-2">
                   {channelSearch.trim() && (
                     <div className="flex items-center gap-2 rounded-lg bg-teal/10 px-3 py-2 text-sm text-teal">

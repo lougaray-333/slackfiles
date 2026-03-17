@@ -25,11 +25,20 @@ router.post('/events', slackVerify, async (req, res) => {
   }
 });
 
+// Cache channels in memory (refreshes every 5 minutes)
+let channelCache = null;
+let channelCacheTime = 0;
+const CACHE_TTL = 5 * 60 * 1000;
+
 // API endpoint for frontend to list Slack channels
 router.get('/channels', async (_req, res) => {
   try {
-    const result = await listChannels();
-    res.json(result.channels);
+    if (!channelCache || Date.now() - channelCacheTime > CACHE_TTL) {
+      const result = await listChannels();
+      channelCache = result.channels;
+      channelCacheTime = Date.now();
+    }
+    res.json(channelCache);
   } catch (err) {
     console.error('Slack channels error:', err);
     res.status(500).json({ error: err.message });
